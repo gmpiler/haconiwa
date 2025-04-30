@@ -27,6 +27,7 @@ wire [3:0]   alu_op;
 wire [31:0]  immext;
 wire [4:0]   rd_raw, rs1, rs2;
 wire [31:0]  read_reg_data1, read_reg_data2, aluout_raw;
+wire imm_enable;
 reg reg_write_enable;
 reg [31:0] reg_write_data;
 reg [4:0] reg_write_addr;
@@ -39,7 +40,8 @@ DECODER dec(
     .rd(rd_raw),
     .rs1(rs1),
     .rs2(rs2),
-    .write_enable(reg_write_enable_raw)
+    .write_enable(reg_write_enable_raw),
+    .imm_enable(imm_enable)
 );
 
 // reg
@@ -55,11 +57,16 @@ REGFILE regfile(
 );
 
 /* EXE */
+wire [31:0] alu_src1, alu_src2;
+
+assign alu_src1 = read_reg_data1;
+assign alu_src2 = imm_enable ? immext : read_reg_data2;
+
 // alu
 ALU alu(
     .alu_op(alu_op),
-    .src1(read_reg_data1),
-    .src2(read_reg_data2),
+    .src1(alu_src1),
+    .src2(alu_src2),
     .aluout(aluout_raw)
 );
 

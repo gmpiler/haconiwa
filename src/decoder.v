@@ -8,7 +8,8 @@ module DECODER(
     output reg  [3:0]   alu_op,
     output reg  [31:0]  immext,
     output reg  [4:0]   rd, rs1, rs2,
-    output reg          write_enable
+    output reg          write_enable,
+    output reg          imm_enable
 );
 
 wire [6:0] opcode = instr[6:0];
@@ -27,6 +28,7 @@ always @* begin
             rs1             = instr[19:15];
             rs2             = instr[24:20];
             write_enable    = 1'b1;
+            imm_enable      = 1'b0;
         end
 
         /* I-type */
@@ -35,11 +37,13 @@ always @* begin
         7'b1100011:
         begin
             funct7  = 7'bx;
-            funct3  = 3'bx;
-            immext  = 32'bx;
-            rd      = 4'bx;
-            rs1     = 4'bx;
-            rs2     = 4'bx;
+            funct3  = instr[14:12];
+            immext  = {{20{instr[31]}}, instr[31:20]};
+            rd      = instr[11:7];
+            rs1     = instr[19:15];
+            rs2     = 5'bx;
+            write_enable    = 1'b1;
+            imm_enable      = 1'b1;
         end
 
         /* S-type */
@@ -48,9 +52,9 @@ always @* begin
             funct7  = 7'bx;
             funct3  = 3'bx;
             immext  = 32'bx;
-            rd      = 4'bx;
-            rs1     = 4'bx;
-            rs2     = 4'bx;
+            rd      = 5'bx;
+            rs1     = 5'bx;
+            rs2     = 5'bx;
         end
 
         /* B-type */
@@ -59,9 +63,9 @@ always @* begin
             funct7  = 7'bx;
             funct3  = 3'bx;
             immext  = 32'bx;
-            rd      = 4'bx;
-            rs1     = 4'bx;
-            rs2     = 4'bx;
+            rd      = 5'bx;
+            rs1     = 5'bx;
+            rs2     = 5'bx;
         end
 
         /* U-type */
@@ -71,9 +75,9 @@ always @* begin
             funct7  = 7'bx;
             funct3  = 3'bx;
             immext  = 32'bx;
-            rd      = 4'bx;
-            rs1     = 4'bx;
-            rs2     = 4'bx;
+            rd      = 5'bx;
+            rs1     = 5'bx;
+            rs2     = 5'bx;
         end
 
         /* J-type */
@@ -82,9 +86,9 @@ always @* begin
             funct7  = 7'bx;
             funct3  = 3'bx;
             immext  = 32'bx;
-            rd      = 4'bx;
-            rs1     = 4'bx;
-            rs2     = 4'bx;
+            rd      = 5'bx;
+            rs1     = 5'bx;
+            rs2     = 5'bx;
         end
 
         default:
@@ -92,9 +96,9 @@ always @* begin
             funct7  = 7'bx;
             funct3  = 3'bx;
             immext  = 32'bx;
-            rd      = 4'bx;
-            rs1     = 4'bx;
-            rs2     = 4'bx;
+            rd      = 5'bx;
+            rs1     = 5'bx;
+            rs2     = 5'bx;
         end
     endcase
 end
@@ -102,11 +106,22 @@ end
 always @* begin
     case (funct3)
         3'b000: begin
-            case (funct7)
-                7'b0000000: alu_op = 4'b0000;  // add
-                7'b0100000: alu_op = 4'b0001;  // sub
-                default:    alu_op = 4'bx;
-            endcase
+            if (opcode == 7'b0110011) // R-type
+            begin
+                case (funct7)
+                    7'b0000000: alu_op = 4'b0000;  // add
+                    7'b0100000: alu_op = 4'b0001;  // sub
+                    default:    alu_op = 4'bx;
+                endcase
+            end
+            else if (opcode == 7'b0010011) // I-type
+            begin
+                alu_op = 4'b0000;   // addi
+            end
+            else
+            begin
+                alu_op = 4'bx;
+            end
         end
         3'b001: alu_op = 4'b0010;  // sll
         3'b010: alu_op = 4'b0011;  // slt

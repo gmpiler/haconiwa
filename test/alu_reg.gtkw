@@ -1,0 +1,38 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Apr 30 16:28:38 2025
+[*]
+[dumpfile] "/home/gondos/work/FPGA/haconiwa/test/sim_top_haconiwa.vcd"
+[dumpfile_mtime] "Wed Apr 30 16:18:24 2025"
+[dumpfile_size] 8675
+[savefile] "/home/gondos/work/FPGA/haconiwa/test/alu_reg.gtkw"
+[timestart] 30
+[size] 1166 641
+[pos] -1 -1
+*-4.000000 59 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] SIMTOP.
+[treeopen] SIMTOP.htop.
+[sst_width] 278
+[signals_width] 260
+[sst_expanded] 1
+[sst_vpaned_height] 171
+@28
+SIMTOP.htop.hcore.clk
+@22
+SIMTOP.htop.pc[31:0]
+SIMTOP.htop.instr[31:0]
+SIMTOP.htop.hcore.read_reg_data1[31:0]
+SIMTOP.htop.hcore.read_reg_data2[31:0]
+SIMTOP.htop.hcore.immext[31:0]
+@28
+SIMTOP.htop.hcore.imm_enable
+@22
+SIMTOP.htop.hcore.alu_src1[31:0]
+SIMTOP.htop.hcore.alu_src2[31:0]
+SIMTOP.htop.hcore.aluout_raw[31:0]
+SIMTOP.htop.hcore.reg_write_data[31:0]
+SIMTOP.htop.hcore.reg_write_addr[4:0]
+@28
+SIMTOP.htop.hcore.reg_write_enable
+[pattern_trace] 1
+[pattern_trace] 0

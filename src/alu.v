@@ -7,7 +7,11 @@ module ALU(
 
 always @* begin
     case (alu_op)
-        4'b0000: aluout <= src1 + src2;  // add
+        4'b0000,
+        4'b1010:
+        begin
+            aluout <= src1 + src2;  // add, addi
+        end
         4'b0001: aluout <= src1 - src2;  // sub
         4'b0010: aluout <= src1 & src2;  // and
         4'b0011: aluout <= src1 | src2;  // or

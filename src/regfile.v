@@ -11,9 +11,9 @@ module REGFILE(
 
 reg [31:0] register_file [31:0];
 
-// always @ (posedge clk) begin
-//     if (write_enable) register_file[write_address] <= write_data;
-// end
+always @ (posedge clk) begin
+    if (write_enable) register_file[write_address] <= write_data;
+end
 
 /* レジスタの初期化(シミュレーション用) */
 integer i;
