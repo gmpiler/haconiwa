@@ -7,7 +7,8 @@ module DECODER(
     input       [31:0]  instr,
     output reg  [3:0]   alu_op,
     output reg  [31:0]  immext,
-    output reg  [4:0]   rd, rs1, rs2
+    output reg  [4:0]   rd, rs1, rs2,
+    output reg          write_enable
 );
 
 wire [6:0] opcode = instr[6:0];
@@ -19,12 +20,13 @@ always @* begin
         /* R-type */
         7'b0110011:
         begin
-            funct7  = instr[31:25];
-            funct3  = instr[14:12];
-            immext  = 32'bx;
-            rd      = instr[11:7];
-            rs1     = instr[19:15];
-            rs2     = instr[24:20];
+            funct7          = instr[31:25];
+            funct3          = instr[14:12];
+            immext          = 32'bx;
+            rd              = instr[11:7];
+            rs1             = instr[19:15];
+            rs2             = instr[24:20];
+            write_enable    = 1'b1;
         end
 
         /* I-type */

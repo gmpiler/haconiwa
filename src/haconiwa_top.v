@@ -2,14 +2,15 @@ module HACONIWA_TOP(
     input   CLOCK_50_B5B, CPU_RESET_n
 );
 
-wire [31:0] pc, instr, readdata;
+wire [31:0] pc, instr, readdata, dataaddr, writedata;
+wire mem_write_enable;
 
 HACONIWA_CORE hcore(
     .clk(CLOCK_50_B5B),
     .reset(!CPU_RESET_n),
     .pc(pc),
     .instr(instr),
-    .write_enable(write_enable),
+    .mem_write_enable(mem_write_enable),
     .dataaddr(dataaddr),
     .writedata(writedata),
     .readdata(readdata)    
@@ -22,7 +23,7 @@ IMEM imem(
 
 DMEM dmem(
     .clk(CLOCK_50_B5B),
-    .write_enable(write_enable),
+    .write_enable(mem_write_enable),
     .dataaddr(dataaddr),
     .writedata(writedata),
     .readdata(readdata)
