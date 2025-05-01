@@ -1,6 +1,6 @@
 module REGFILE(
     input clk,
-    input write_enable,
+    input write_request,
     input   [4:0] write_address,
     input   [4:0] read_address1,
     input   [4:0] read_address2,
@@ -12,7 +12,7 @@ module REGFILE(
 reg [31:0] register_file [31:0];
 
 always @ (posedge clk) begin
-    if (write_enable) register_file[write_address] <= write_data;
+    if (write_request) register_file[write_address] <= write_data;
 end
 
 /* レジスタの初期化(シミュレーション用) */

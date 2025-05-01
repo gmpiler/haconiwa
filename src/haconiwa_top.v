@@ -2,16 +2,16 @@ module HACONIWA_TOP(
     input   CLOCK_50_B5B, CPU_RESET_n
 );
 
-wire [31:0] pc, instr, readdata, dataaddr, writedata;
-wire mem_write_enable;
+wire [31:0] pc, instr, readdata, mem_access_address, writedata;
+wire mem_write_request;
 
 HACONIWA_CORE hcore(
     .clk(CLOCK_50_B5B),
     .reset(!CPU_RESET_n),
     .pc(pc),
     .instr(instr),
-    .mem_write_enable(mem_write_enable),
-    .dataaddr(dataaddr),
+    .core2mem_write_request(mem_write_request),
+    .mem_access_address(mem_access_address),
     .writedata(writedata),
     .readdata(readdata)    
 );
@@ -23,8 +23,8 @@ IMEM imem(
 
 DMEM dmem(
     .clk(CLOCK_50_B5B),
-    .write_enable(mem_write_enable),
-    .dataaddr(dataaddr),
+    .write_request(mem_write_request),
+    .mem_access_address(mem_access_address),
     .writedata(writedata),
     .readdata(readdata)
 );
@@ -50,6 +50,6 @@ module SIMTOP();
         $dumpfile("sim_top_haconiwa.vcd");
         $dumpvars(0, htop);
 
-        #1000 $finish;
+        #120 $finish;
     end
 endmodule

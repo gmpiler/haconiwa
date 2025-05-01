@@ -1,16 +1,19 @@
 module DMEM(
-    input           clk, write_enable,
-    input [31:0]    dataaddr, writedata,
+    input           clk, write_request,
+    input [31:0]    mem_access_address, writedata,
     output [31:0]   readdata
 );
 
 reg [31:0] RAM[63:0];
 
-assign readdata = RAM[dataaddr[31:2]];
+assign readdata = RAM[mem_access_address[31:2]];
 
-always @ (posedge clk)
-    if (write_enable)
-        RAM[dataaddr[31:2]] <= writedata;
+always @ (posedge clk) begin
+    $display("dmemaddr: %h -> readdata: %h", mem_access_address[31:2], readdata);
+    if (write_request) begin
+        RAM[mem_access_address[31:2]] <= writedata;
+    end
+end
 
 /* データメモリの初期化(シミュレーション用) */
 integer i;
