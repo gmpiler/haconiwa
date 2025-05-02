@@ -10,12 +10,13 @@ module HACONIWA_CORE(
 );
 
 /* === Pipeline Registers === */
-reg [31:0]  IF_ID_instr;
-reg         stall;
+reg [31:0]  IF_ID_pc, IF_ID_instr;
+reg         stall, flush;
 reg [3:0]   ID_EXE_alu_op;
-reg [31:0]  ID_EXE_immext, ID_EXE_read_reg_data1, ID_EXE_read_reg_data2;
+reg [2:0]   ID_EXE_branch_type;
+reg [31:0]  ID_EXE_pc, next_pc, ID_EXE_immext, ID_EXE_read_reg_data1, ID_EXE_read_reg_data2;
 reg [4:0]   ID_EXE_rd, ID_EXE_rs1, ID_EXE_rs2;
-reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable;
+reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable, ID_EXE_is_branch;
 reg [4:0]   EXE_MEM_rd;
 reg [31:0]  EXE_MEM_aluout, EXE_MEM_write_data;
 reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request;
@@ -24,15 +25,21 @@ reg [4:0]   MEM_WB_rd;
 reg [31:0]  MEM_WB_reg_write_data;
 
 /* === IF Stage === */
+always @* begin
+    if (flush) begin
+        next_pc = ID_EXE_pc + ID_EXE_immext;
+    end else begin
+        next_pc = pc + 4;
+    end
+end
+
 always @ (posedge clk) begin
     if (reset) begin
         pc <= 32'h0;
     end else if (!stall) begin
-        pc <= pc + 32'h4;
-        IF_ID_instr <= instr;
-    end else begin
-        pc <= pc;
-        IF_ID_instr <= IF_ID_instr;
+        pc <= next_pc;
+        IF_ID_pc <= pc;
+        IF_ID_instr <= (flush) ? 32'h00000013 : instr;
     end
 end
 
@@ -40,7 +47,8 @@ end
 wire [3:0] alu_op;
 wire [31:0] immext, read_reg_data1, read_reg_data2;
 wire [4:0] rd, rs1, rs2;
-wire dec_reg_write_request, dec_mem_write_request, dec_mem_read_request, dec_imm_enable;
+wire [2:0] branch_type;
+wire dec_reg_write_request, dec_mem_write_request, dec_mem_read_request, dec_imm_enable, dec_is_branch;
 
 DECODER dec(
     .instr(IF_ID_instr),
@@ -52,7 +60,9 @@ DECODER dec(
     .imm_enable(dec_imm_enable),
     .reg_write_request(dec_reg_write_request),
     .mem_write_request(dec_mem_write_request),
-    .mem_read_request(dec_mem_read_request)
+    .mem_read_request(dec_mem_read_request),
+    .is_branch(is_branch),
+    .branch_type(branch_type)
 );
 
 REGFILE regfile(
@@ -68,6 +78,7 @@ REGFILE regfile(
 
 always @ (posedge clk) begin
     if (!stall) begin
+        ID_EXE_pc                   <= IF_ID_pc;
         ID_EXE_alu_op               <= alu_op;
         ID_EXE_immext               <= immext;
         ID_EXE_read_reg_data1       <= read_reg_data1;
@@ -79,7 +90,10 @@ always @ (posedge clk) begin
         ID_EXE_mem_write_request    <= dec_mem_write_request;
         ID_EXE_mem_read_request     <= dec_mem_read_request;
         ID_EXE_imm_enable           <= dec_imm_enable;
+        ID_EXE_is_branch            <= is_branch;
+        ID_EXE_branch_type          <= branch_type;
     end else begin
+        ID_EXE_pc                   <= 32'b0;
         ID_EXE_alu_op               <= 4'b0;
         ID_EXE_immext               <= 32'b0;
         ID_EXE_read_reg_data1       <= 32'b0;
@@ -91,6 +105,8 @@ always @ (posedge clk) begin
         ID_EXE_mem_write_request    <= 1'b0;
         ID_EXE_mem_read_request     <= 1'b0;
         ID_EXE_imm_enable           <= 1'b0; 
+        ID_EXE_is_branch            <= 1'b0;
+        ID_EXE_branch_type          <= 1'b0;
     end
 end
 
@@ -131,6 +147,17 @@ ALU alu(
     .src2(alu_src2),
     .aluout(exe_aluout)
 );
+
+wire branch_taken;
+assign branch_taken = (ID_EXE_is_branch && (exe_aluout == 1'b1)) ? 1'b1 : 1'b0 ;
+// assign branch_taken =   (ID_EXE_branch_type == 3'b000) ? (fwd_src1 == fwd_src2) :
+//                         (ID_EXE_branch_type == 3'b001) ? (fwd_src1 != fwd_src2) :
+//                         (ID_EXE_branch_type == 3'b100) ? (fwd_src1 < fwd_src2) :
+//                         (ID_EXE_branch_type == 3'b101) ? (fwd_src1 >= fwd_src2) : 1'b0;
+
+always @* begin
+    flush = ID_EXE_is_branch && branch_taken;
+end
 
 always @ (posedge clk) begin
     EXE_MEM_aluout <= exe_aluout;
