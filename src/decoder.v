@@ -55,7 +55,6 @@ module DECODER(
                 rs2             = 5'bx;
                 reg_write_request = 1'b1;
                 imm_enable      = 1'b1;
-                // $display("immext1: %h (opcode: %b)", immext, opcode);
             end
 
             /* S-type */
@@ -70,7 +69,6 @@ module DECODER(
                 reg_write_request = 1'b0;
                 imm_enable          = 1'b1;
                 debug_isstore = 1'b1;
-                $display("immext2: %h (opcode: %b)", immext, opcode);
             end
 
             /* B-type */

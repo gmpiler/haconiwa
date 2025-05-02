@@ -1,96 +1,111 @@
 module HACONIWA_CORE(
-    input   clk,
-    input   reset,
-    output reg [31:0]   pc,
-    input  [31:0]   instr,
-    output  core2mem_write_request,
-    output [31:0]   mem_access_address,
-    output [31:0]   writedata,
-    input  [31:0]   readdata
+    input               clk,
+    input               reset,
+    output reg  [31:0]  pc,
+    input       [31:0]  instr,
+    output      [31:0]  core2mem_access_address,
+    input       [31:0]  mem2core_read_data,
+    output      [31:0]  core2mem_write_data,
+    output              core2mem_write_request
 );
 
-/* IF */
-// pc counter
+/* === Pipeline Registers === */
+reg [31:0]  IF_ID_instr;
+reg [3:0]   ID_EXE_alu_op;
+reg [31:0]  ID_EXE_immext, ID_EXE_read_reg_data1, ID_EXE_read_reg_data2;
+reg [4:0]   ID_EXE_rd, ID_EXE_rs1, ID_EXE_rs2;
+reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable;
+reg [4:0]   EXE_MEM_rd;
+reg [31:0]  EXE_MEM_aluout, EXE_MEM_write_data;
+reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request;
+reg         MEM_WB_reg_write_request;
+reg [4:0]   MEM_WB_rd;
+reg [31:0]  MEM_WB_reg_write_data;
+
+/* === IF Stage === */
 always @ (posedge clk) begin
     if (reset) begin
         pc <= 32'h0;
     end else begin
         pc <= pc + 32'h4;
+        IF_ID_instr <= instr;
     end
-    $display("PC: %h, instr: %h", pc, instr);
 end
 
+/* === ID Stage === */
+wire [3:0] alu_op;
+wire [31:0] immext, read_reg_data1, read_reg_data2;
+wire [4:0] rd, rs1, rs2;
+wire dec_reg_write_request, dec_mem_write_request, dec_mem_read_request, dec_imm_enable;
 
-/* DECODE */
-wire         reg_write_request_raw, mem_read_request_raw, mem_write_request_raw;
-wire [3:0]   alu_op;
-wire [31:0]  immext;
-wire [4:0]   rd_raw, rs1, rs2;
-wire [31:0]  read_reg_data1, read_reg_data2, aluout_raw;
-wire imm_enable;
-reg reg_write_request;
-reg mem_read_request;
-reg mem_write_request;
-reg [31:0] aluout, mem_write_data;
-reg [4:0] reg_write_addr;
-
-// decoder
 DECODER dec(
-    .instr(instr),
+    .instr(IF_ID_instr),
     .alu_op(alu_op),
-    .immext(immext),
-    .rd(rd_raw),
+    .rd(rd),
     .rs1(rs1),
     .rs2(rs2),
-    .reg_write_request(reg_write_request_raw),
-    .mem_write_request(mem_write_request_raw),
-    .mem_read_request(mem_read_request_raw),
-    .imm_enable(imm_enable)
+    .immext(immext),
+    .imm_enable(dec_imm_enable),
+    .reg_write_request(dec_reg_write_request),
+    .mem_write_request(dec_mem_write_request),
+    .mem_read_request(dec_mem_read_request)
 );
-
-// reg
-wire [31:0] reg_write_data = (mem_read_request) ? readdata : aluout;
 
 REGFILE regfile(
     .clk(clk),
-    .write_request(reg_write_request),
-    .write_address(reg_write_addr),
     .read_address1(rs1),
     .read_address2(rs2),
-    .write_data(reg_write_data),
     .read_data1(read_reg_data1),
-    .read_data2(read_reg_data2)
+    .read_data2(read_reg_data2),
+    .write_request(MEM_WB_reg_write_request),
+    .write_address(MEM_WB_rd),
+    .write_data(MEM_WB_reg_write_data)
 );
 
-/* EXE */
-wire [31:0] alu_src1, alu_src2;
-
-assign alu_src1 = read_reg_data1;
-assign alu_src2 = imm_enable ? immext : read_reg_data2;
-
-// alu
-ALU alu(
-    .alu_op(alu_op),
-    .src1(alu_src1),
-    .src2(alu_src2),
-    .aluout(aluout_raw)
-);
-
-/* WB preparation */
-// latch
 always @ (posedge clk) begin
-    mem_read_request <= mem_read_request_raw;
-    mem_write_request <= mem_write_request_raw;
-    reg_write_request <= reg_write_request_raw;
-    mem_write_data    <= read_reg_data2;
-    aluout   <= aluout_raw;
-    reg_write_addr   <= rd_raw;
+    ID_EXE_alu_op <= alu_op;
+    ID_EXE_immext <= immext;
+    ID_EXE_read_reg_data1 <= read_reg_data1;
+    ID_EXE_read_reg_data2 <= read_reg_data2;
+    ID_EXE_rd <= rd;
+    ID_EXE_rs1 <= rs1;
+    ID_EXE_rs2 <= rs2;
+    ID_EXE_reg_write_request <= dec_reg_write_request;
+    ID_EXE_mem_write_request <= dec_mem_write_request;
+    ID_EXE_mem_read_request <= dec_mem_read_request;
+    ID_EXE_imm_enable <= dec_imm_enable;
 end
 
-/* MEM */
-// mem
-assign mem_access_address = (mem_read_request || mem_write_request) ? aluout : 32'bx;
-assign core2mem_write_request = mem_write_request;
-assign writedata = mem_write_data;
+/* === EXE Stage === */
+wire [31:0] alu_src1, alu_src2, exe_aluout;
+assign alu_src1 = ID_EXE_read_reg_data1;
+assign alu_src2 = ID_EXE_imm_enable ? ID_EXE_immext : ID_EXE_read_reg_data2;
+
+ALU alu(
+    .alu_op(ID_EXE_alu_op),
+    .src1(alu_src1),
+    .src2(alu_src2),
+    .aluout(exe_aluout)
+);
+
+always @ (posedge clk) begin
+    EXE_MEM_aluout <= exe_aluout;
+    EXE_MEM_rd <= ID_EXE_rd;
+    EXE_MEM_write_data <= ID_EXE_read_reg_data2;
+    EXE_MEM_reg_write_request <= ID_EXE_reg_write_request;
+    EXE_MEM_mem_write_request <= ID_EXE_mem_write_request;
+    EXE_MEM_mem_read_request <= ID_EXE_mem_read_request;
+end
+
+/* === MEM Stage === */
+assign core2mem_write_request = EXE_MEM_mem_write_request;
+assign core2mem_access_address = EXE_MEM_aluout;    // read/writeリクエスト時のみアドレスを有効化する仕様を排除，カーネル領域へのアクセスなどはMMUなどで制限
+assign core2mem_write_data = EXE_MEM_write_data;
+
+always @ (posedge clk) begin
+    MEM_WB_reg_write_request <= EXE_MEM_reg_write_request;
+    MEM_WB_rd <= EXE_MEM_rd;
+    MEM_WB_reg_write_data <= (EXE_MEM_mem_read_request) ? mem2core_read_data : EXE_MEM_aluout;
+end
 
 endmodule

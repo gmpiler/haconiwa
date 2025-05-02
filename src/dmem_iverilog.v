@@ -1,17 +1,16 @@
 module DMEM(
     input           clk, write_request,
-    input [31:0]    mem_access_address, writedata,
-    output [31:0]   readdata
+    input   [31:0]  access_address, write_data,
+    output  [31:0]  read_data
 );
 
 reg [31:0] RAM[63:0];
 
-assign readdata = RAM[mem_access_address[31:2]];
+assign read_data = RAM[access_address[31:2]];
 
 always @ (posedge clk) begin
-    $display("dmemaddr: %h -> readdata: %h", mem_access_address[31:2], readdata);
     if (write_request) begin
-        RAM[mem_access_address[31:2]] <= writedata;
+        RAM[access_address[31:2]] <= write_data;
     end
 end
 
