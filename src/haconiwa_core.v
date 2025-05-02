@@ -11,6 +11,7 @@ module HACONIWA_CORE(
 
 /* === Pipeline Registers === */
 reg [31:0]  IF_ID_instr;
+reg         stall;
 reg [3:0]   ID_EXE_alu_op;
 reg [31:0]  ID_EXE_immext, ID_EXE_read_reg_data1, ID_EXE_read_reg_data2;
 reg [4:0]   ID_EXE_rd, ID_EXE_rs1, ID_EXE_rs2;
@@ -26,9 +27,12 @@ reg [31:0]  MEM_WB_reg_write_data;
 always @ (posedge clk) begin
     if (reset) begin
         pc <= 32'h0;
-    end else begin
+    end else if (!stall) begin
         pc <= pc + 32'h4;
         IF_ID_instr <= instr;
+    end else begin
+        pc <= pc;
+        IF_ID_instr <= IF_ID_instr;
     end
 end
 
@@ -63,23 +67,63 @@ REGFILE regfile(
 );
 
 always @ (posedge clk) begin
-    ID_EXE_alu_op <= alu_op;
-    ID_EXE_immext <= immext;
-    ID_EXE_read_reg_data1 <= read_reg_data1;
-    ID_EXE_read_reg_data2 <= read_reg_data2;
-    ID_EXE_rd <= rd;
-    ID_EXE_rs1 <= rs1;
-    ID_EXE_rs2 <= rs2;
-    ID_EXE_reg_write_request <= dec_reg_write_request;
-    ID_EXE_mem_write_request <= dec_mem_write_request;
-    ID_EXE_mem_read_request <= dec_mem_read_request;
-    ID_EXE_imm_enable <= dec_imm_enable;
+    if (!stall) begin
+        ID_EXE_alu_op               <= alu_op;
+        ID_EXE_immext               <= immext;
+        ID_EXE_read_reg_data1       <= read_reg_data1;
+        ID_EXE_read_reg_data2       <= read_reg_data2;
+        ID_EXE_rd                   <= rd;
+        ID_EXE_rs1                  <= rs1;
+        ID_EXE_rs2                  <= rs2;
+        ID_EXE_reg_write_request    <= dec_reg_write_request;
+        ID_EXE_mem_write_request    <= dec_mem_write_request;
+        ID_EXE_mem_read_request     <= dec_mem_read_request;
+        ID_EXE_imm_enable           <= dec_imm_enable;
+    end else begin
+        ID_EXE_alu_op               <= 4'b0;
+        ID_EXE_immext               <= 32'b0;
+        ID_EXE_read_reg_data1       <= 32'b0;
+        ID_EXE_read_reg_data2       <= 32'b0;
+        ID_EXE_rd                   <= 5'b0;
+        ID_EXE_rs1                  <= 5'b0;
+        ID_EXE_rs2                  <= 5'b0;
+        ID_EXE_reg_write_request    <= 1'b0;
+        ID_EXE_mem_write_request    <= 1'b0;
+        ID_EXE_mem_read_request     <= 1'b0;
+        ID_EXE_imm_enable           <= 1'b0; 
+    end
+end
+
+// load-use hazard detection
+wire load_use_hazard;
+assign load_use_hazard = (ID_EXE_mem_read_request &&
+                            ((ID_EXE_rd == rs1 && ID_EXE_rd != 0) ||
+                            (ID_EXE_rd == rs2 && ID_EXE_rd != 0)));
+always @* begin
+    if (reset) begin
+        stall = 1'b0;
+    end else begin
+        stall = load_use_hazard;
+    end
 end
 
 /* === EXE Stage === */
+wire [31:0] fwd_src1, fwd_src2;
+assign fwd_src1 = (EXE_MEM_reg_write_request && EXE_MEM_rd != 0 && EXE_MEM_rd == ID_EXE_rs1)
+                    ? EXE_MEM_aluout
+                    : (MEM_WB_reg_write_request && MEM_WB_rd != 0 && MEM_WB_rd == ID_EXE_rs1)
+                        ? MEM_WB_reg_write_data
+                        : ID_EXE_read_reg_data1;
+
+assign fwd_src2 = (EXE_MEM_reg_write_request && EXE_MEM_rd != 0 && EXE_MEM_rd == ID_EXE_rs2)
+                    ? EXE_MEM_aluout
+                    : (MEM_WB_reg_write_request && MEM_WB_rd != 0 && MEM_WB_rd == ID_EXE_rs2)
+                        ? MEM_WB_reg_write_data
+                        : ID_EXE_read_reg_data2;
+
 wire [31:0] alu_src1, alu_src2, exe_aluout;
-assign alu_src1 = ID_EXE_read_reg_data1;
-assign alu_src2 = ID_EXE_imm_enable ? ID_EXE_immext : ID_EXE_read_reg_data2;
+assign alu_src1 = fwd_src1;
+assign alu_src2 = ID_EXE_imm_enable ? ID_EXE_immext : fwd_src2;
 
 ALU alu(
     .alu_op(ID_EXE_alu_op),
@@ -91,7 +135,7 @@ ALU alu(
 always @ (posedge clk) begin
     EXE_MEM_aluout <= exe_aluout;
     EXE_MEM_rd <= ID_EXE_rd;
-    EXE_MEM_write_data <= ID_EXE_read_reg_data2;
+    EXE_MEM_write_data <= fwd_src2;
     EXE_MEM_reg_write_request <= ID_EXE_reg_write_request;
     EXE_MEM_mem_write_request <= ID_EXE_mem_write_request;
     EXE_MEM_mem_read_request <= ID_EXE_mem_read_request;
@@ -99,7 +143,7 @@ end
 
 /* === MEM Stage === */
 assign core2mem_write_request = EXE_MEM_mem_write_request;
-assign core2mem_access_address = EXE_MEM_aluout;    // read/writeリクエスト時のみアドレスを有効化する仕様を排除，カーネル領域へのアクセスなどはMMUなどで制限
+assign core2mem_access_address = EXE_MEM_aluout;
 assign core2mem_write_data = EXE_MEM_write_data;
 
 always @ (posedge clk) begin
