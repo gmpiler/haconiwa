@@ -155,10 +155,17 @@ module DECODER(
                         reg_write_request = 1;
                         mem_read_request  = 1;
                     end
-
                     7'b0100011: begin // sw
                         alu_op = 4'b0000;
                         mem_write_request = 1;
+                    end
+                    7'b0110011: begin // slt
+                        alu_op = 4'b1110;
+                        mem_write_request = 1'b0;
+                        mem_read_request = 1'b0;
+                        reg_write_request = 1'b1;
+                        is_branch = 1'b0;
+                        branch_type = 3'b0;
                     end
                     default: alu_op = 4'bx;
                 endcase
