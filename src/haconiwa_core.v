@@ -10,16 +10,20 @@ module HACONIWA_CORE(
 );
 
 /* === Pipeline Registers === */
-reg [31:0]  IF_ID_pc, IF_ID_instr;
 reg         stall, flush;
+
+reg [31:0]  IF_ID_pc, IF_ID_instr;
+
 reg [3:0]   ID_EXE_alu_op;
 reg [2:0]   ID_EXE_branch_type;
 reg [31:0]  ID_EXE_pc, next_pc, ID_EXE_immext, ID_EXE_read_reg_data1, ID_EXE_read_reg_data2;
 reg [4:0]   ID_EXE_rd, ID_EXE_rs1, ID_EXE_rs2;
 reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable, ID_EXE_is_branch;
+
 reg [4:0]   EXE_MEM_rd;
 reg [31:0]  EXE_MEM_aluout, EXE_MEM_write_data;
 reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request;
+
 reg         MEM_WB_reg_write_request;
 reg [4:0]   MEM_WB_rd;
 reg [31:0]  MEM_WB_reg_write_data;
@@ -76,13 +80,19 @@ REGFILE regfile(
     .write_data(MEM_WB_reg_write_data)
 );
 
+wire [31:0] id_fwd_src1, id_fwd_src2;
+assign id_fwd_src1 = (MEM_WB_reg_write_request && MEM_WB_rd != 0 && MEM_WB_rd == rs1)
+                        ? MEM_WB_reg_write_data : read_reg_data1;
+assign id_fwd_src2 = (MEM_WB_reg_write_request && MEM_WB_rd != 0 && MEM_WB_rd == rs2)
+                        ? MEM_WB_reg_write_data : read_reg_data2;
+
 always @ (posedge clk) begin
     if (!stall) begin
         ID_EXE_pc                   <= IF_ID_pc;
         ID_EXE_alu_op               <= alu_op;
         ID_EXE_immext               <= immext;
-        ID_EXE_read_reg_data1       <= read_reg_data1;
-        ID_EXE_read_reg_data2       <= read_reg_data2;
+        ID_EXE_read_reg_data1       <= id_fwd_src1;
+        ID_EXE_read_reg_data2       <= id_fwd_src2;
         ID_EXE_rd                   <= rd;
         ID_EXE_rs1                  <= rs1;
         ID_EXE_rs2                  <= rs2;
@@ -124,22 +134,22 @@ always @* begin
 end
 
 /* === EXE Stage === */
-wire [31:0] fwd_src1, fwd_src2;
-assign fwd_src1 = (EXE_MEM_reg_write_request && EXE_MEM_rd != 0 && EXE_MEM_rd == ID_EXE_rs1)
+wire [31:0] exe_fwd_src1, exe_fwd_src2;
+assign exe_fwd_src1 = (EXE_MEM_reg_write_request && EXE_MEM_rd != 0 && EXE_MEM_rd == ID_EXE_rs1)
                     ? EXE_MEM_aluout
                     : (MEM_WB_reg_write_request && MEM_WB_rd != 0 && MEM_WB_rd == ID_EXE_rs1)
                         ? MEM_WB_reg_write_data
                         : ID_EXE_read_reg_data1;
 
-assign fwd_src2 = (EXE_MEM_reg_write_request && EXE_MEM_rd != 0 && EXE_MEM_rd == ID_EXE_rs2)
+assign exe_fwd_src2 = (EXE_MEM_reg_write_request && EXE_MEM_rd != 0 && EXE_MEM_rd == ID_EXE_rs2)
                     ? EXE_MEM_aluout
                     : (MEM_WB_reg_write_request && MEM_WB_rd != 0 && MEM_WB_rd == ID_EXE_rs2)
                         ? MEM_WB_reg_write_data
                         : ID_EXE_read_reg_data2;
 
 wire [31:0] alu_src1, alu_src2, exe_aluout;
-assign alu_src1 = fwd_src1;
-assign alu_src2 = ID_EXE_imm_enable ? ID_EXE_immext : fwd_src2;
+assign alu_src1 = exe_fwd_src1;
+assign alu_src2 = ID_EXE_imm_enable ? ID_EXE_immext : exe_fwd_src2;
 
 ALU alu(
     .alu_op(ID_EXE_alu_op),
@@ -162,7 +172,7 @@ end
 always @ (posedge clk) begin
     EXE_MEM_aluout <= exe_aluout;
     EXE_MEM_rd <= ID_EXE_rd;
-    EXE_MEM_write_data <= fwd_src2;
+    EXE_MEM_write_data <= exe_fwd_src2;
     EXE_MEM_reg_write_request <= ID_EXE_reg_write_request;
     EXE_MEM_mem_write_request <= ID_EXE_mem_write_request;
     EXE_MEM_mem_read_request <= ID_EXE_mem_read_request;

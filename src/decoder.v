@@ -46,7 +46,7 @@ module DECODER(
             end
 
             /* I-type */
-            7'b0010011, // addi
+            7'b0010011, // addi, ori
             7'b0000011: // lw
             begin
                 funct7          = 7'bx;
@@ -93,10 +93,12 @@ module DECODER(
             7'b0010111: begin  // AUIPC
                 funct7          = 7'bx;
                 funct3          = 3'bx;
-                immext          = 32'bx;
+                immext          = {instr[31:12], 12'b0};
                 rd              = instr[11:7];
-                rs1             = 5'bx;
-                rs2             = 5'bx;
+                rs1             = 5'b0;
+                rs2             = 5'b0;
+                reg_write_request = 1'b1;
+                imm_enable         = 1'b1;
                 is_branch         = 1'b0;
                 branch_type      = 3'bx;
             end
@@ -163,9 +165,6 @@ module DECODER(
                         alu_op = 4'b1110;
                         mem_write_request = 1'b0;
                         mem_read_request = 1'b0;
-                        reg_write_request = 1'b1;
-                        is_branch = 1'b0;
-                        branch_type = 3'b0;
                     end
                     default: alu_op = 4'bx;
                 endcase
@@ -180,7 +179,7 @@ module DECODER(
                     default:    alu_op = 4'bx;
                 endcase
             end
-            3'b110: alu_op = 4'b1000;  // or
+            3'b110: alu_op = 4'b1000;  // ori
             3'b111: alu_op = 4'b1001;  // and
             default: alu_op = 4'bx;
         endcase
@@ -203,6 +202,10 @@ module DECODER(
                     branch_type = 3'b101;
                 end
             endcase
+        end else if (opcode == 7'b0110111) begin
+            alu_op = 4'b1011;   // lui
+        end else if (opcode == 7'b0010111) begin
+            alu_op = 4'b0000;    // auipc
         end
     end
 
