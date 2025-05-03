@@ -7,8 +7,10 @@ module DECODER(
     output reg          mem_write_request,
     output reg          mem_read_request,
     output reg          imm_enable,
+    output reg  [2:0]   branch_type,
     output reg          is_branch,
-    output reg  [2:0]   branch_type
+    output reg          is_jal,
+    output reg          is_jalr
 );
 
     wire [6:0] opcode = instr[6:0];
@@ -29,6 +31,8 @@ module DECODER(
         immext            = 32'bx;
         is_branch         = 1'b0;
         branch_type      = 3'b0;
+        is_jal            = 1'b0;
+        is_jalr           = 1'b0;
 
         case (opcode)
             /* R-type */
@@ -105,14 +109,32 @@ module DECODER(
 
             /* J-type */
             7'b1101111: begin // jal
-                funct7          = 7'bx;
-                funct3          = 3'bx;
-                immext          = 32'bx;
-                rd              = instr[11:7];
-                rs1             = 5'bx;
-                rs2             = 5'bx;
+                funct7           = 7'bx;
+                funct3           = 3'bx;
+                immext           = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0}; // J型即値
+                rd               = instr[11:7];
+                rs1              = 5'bx;
+                rs2              = 5'bx;
+                reg_write_request = 1'b1;
+                imm_enable        = 1'b1;
                 is_branch         = 1'b0;
-                branch_type      = 3'bx;
+                is_jal            = 1'b1;
+                is_jalr           = 1'b0;
+                branch_type       = 3'bx;
+            end
+            7'b1100111: begin // jalr
+                funct7           = 7'bx;
+                funct3           = instr[14:12];
+                immext           = {{20{instr[31]}}, instr[31:20]};
+                rd               = instr[11:7];
+                rs1              = instr[19:15];
+                rs2              = 5'bx;
+                reg_write_request = 1'b1;
+                imm_enable        = 1'b1;
+                is_branch         = 1'b0;
+                is_jal            = 1'b0;
+                is_jalr           = 1'b1;
+                branch_type       = 3'bx;
             end
 
             default: begin

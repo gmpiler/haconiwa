@@ -18,11 +18,11 @@ reg [3:0]   ID_EXE_alu_op;
 reg [2:0]   ID_EXE_branch_type;
 reg [31:0]  ID_EXE_pc, next_pc, ID_EXE_immext, ID_EXE_read_reg_data1, ID_EXE_read_reg_data2;
 reg [4:0]   ID_EXE_rd, ID_EXE_rs1, ID_EXE_rs2;
-reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable, ID_EXE_is_branch;
+reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable, ID_EXE_is_branch, ID_EXE_is_jal, ID_EXE_is_jalr;
 
 reg [4:0]   EXE_MEM_rd;
-reg [31:0]  EXE_MEM_aluout, EXE_MEM_write_data;
-reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request;
+reg [31:0]  EXE_MEM_pc, EXE_MEM_aluout, EXE_MEM_write_data;
+reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request, EXE_MEM_is_jal, EXE_MEM_is_jalr;
 
 reg         MEM_WB_reg_write_request;
 reg [4:0]   MEM_WB_rd;
@@ -31,7 +31,11 @@ reg [31:0]  MEM_WB_reg_write_data;
 /* === IF Stage === */
 always @* begin
     if (flush) begin
-        next_pc = ID_EXE_pc + ID_EXE_immext;
+        if (ID_EXE_is_jalr) begin
+            next_pc = (ID_EXE_read_reg_data1 + ID_EXE_immext) & ~32'b1;
+        end else begin
+            next_pc = ID_EXE_pc + ID_EXE_immext;
+        end
     end else begin
         next_pc = pc + 4;
     end
@@ -51,8 +55,8 @@ end
 wire [3:0] alu_op;
 wire [31:0] immext, read_reg_data1, read_reg_data2;
 wire [4:0] rd, rs1, rs2;
-wire [2:0] branch_type;
-wire dec_reg_write_request, dec_mem_write_request, dec_mem_read_request, dec_imm_enable, dec_is_branch;
+wire [2:0] dec_branch_type;
+wire dec_reg_write_request, dec_mem_write_request, dec_mem_read_request, dec_imm_enable, dec_is_branch, dec_is_jal, dec_is_jalr;
 
 DECODER dec(
     .instr(IF_ID_instr),
@@ -65,8 +69,10 @@ DECODER dec(
     .reg_write_request(dec_reg_write_request),
     .mem_write_request(dec_mem_write_request),
     .mem_read_request(dec_mem_read_request),
-    .is_branch(is_branch),
-    .branch_type(branch_type)
+    .branch_type(dec_branch_type),
+    .is_branch(dec_is_branch),
+    .is_jal(dec_is_jal),
+    .is_jalr(dec_is_jalr)
 );
 
 REGFILE regfile(
@@ -100,8 +106,10 @@ always @ (posedge clk) begin
         ID_EXE_mem_write_request    <= dec_mem_write_request;
         ID_EXE_mem_read_request     <= dec_mem_read_request;
         ID_EXE_imm_enable           <= dec_imm_enable;
-        ID_EXE_is_branch            <= is_branch;
-        ID_EXE_branch_type          <= branch_type;
+        ID_EXE_branch_type          <= dec_branch_type;
+        ID_EXE_is_branch            <= dec_is_branch;
+        ID_EXE_is_jal               <= dec_is_jal;
+        ID_EXE_is_jalr              <= dec_is_jalr;
     end else begin
         ID_EXE_pc                   <= 32'b0;
         ID_EXE_alu_op               <= 4'b0;
@@ -114,9 +122,11 @@ always @ (posedge clk) begin
         ID_EXE_reg_write_request    <= 1'b0;
         ID_EXE_mem_write_request    <= 1'b0;
         ID_EXE_mem_read_request     <= 1'b0;
-        ID_EXE_imm_enable           <= 1'b0; 
+        ID_EXE_imm_enable           <= 1'b0;
+        ID_EXE_branch_type          <= 1'b0; 
         ID_EXE_is_branch            <= 1'b0;
-        ID_EXE_branch_type          <= 1'b0;
+        ID_EXE_is_jal               <= 1'b0;
+        ID_EXE_is_jalr              <= 1'b0;
     end
 end
 
@@ -166,7 +176,7 @@ assign branch_taken = (ID_EXE_is_branch && (exe_aluout == 1'b1)) ? 1'b1 : 1'b0 ;
 //                         (ID_EXE_branch_type == 3'b101) ? (fwd_src1 >= fwd_src2) : 1'b0;
 
 always @* begin
-    flush = ID_EXE_is_branch && branch_taken;
+    flush = ID_EXE_is_branch && branch_taken || ID_EXE_is_jal || ID_EXE_is_jalr;
 end
 
 always @ (posedge clk) begin
@@ -176,6 +186,9 @@ always @ (posedge clk) begin
     EXE_MEM_reg_write_request <= ID_EXE_reg_write_request;
     EXE_MEM_mem_write_request <= ID_EXE_mem_write_request;
     EXE_MEM_mem_read_request <= ID_EXE_mem_read_request;
+    EXE_MEM_pc <= ID_EXE_pc;
+    EXE_MEM_is_jal <= ID_EXE_is_jal;
+    EXE_MEM_is_jalr <= ID_EXE_is_jalr;
 end
 
 /* === MEM Stage === */
@@ -186,7 +199,9 @@ assign core2mem_write_data = EXE_MEM_write_data;
 always @ (posedge clk) begin
     MEM_WB_reg_write_request <= EXE_MEM_reg_write_request;
     MEM_WB_rd <= EXE_MEM_rd;
-    MEM_WB_reg_write_data <= (EXE_MEM_mem_read_request) ? mem2core_read_data : EXE_MEM_aluout;
+    MEM_WB_reg_write_data <=    (EXE_MEM_mem_read_request) ? mem2core_read_data :
+                                (EXE_MEM_is_jal || EXE_MEM_is_jalr) ? EXE_MEM_pc + 32'h4 :
+                                EXE_MEM_aluout;
 end
 
 endmodule
