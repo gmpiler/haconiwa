@@ -33,6 +33,8 @@ always @* begin
     if (flush) begin
         if (ID_EXE_is_jalr) begin
             next_pc = (ID_EXE_read_reg_data1 + ID_EXE_immext) & ~32'b1;
+        end else if (ID_EXE_is_jal) begin
+            next_pc = ID_EXE_pc + ID_EXE_immext;
         end else begin
             next_pc = ID_EXE_pc + ID_EXE_immext;
         end
@@ -47,7 +49,7 @@ always @ (posedge clk) begin
     end else if (!stall) begin
         pc <= next_pc;
         IF_ID_pc <= pc;
-        IF_ID_instr <= (flush) ? 32'h00000013 : instr;
+        IF_ID_instr <= (flush) ? 32'h00000013 : instr;  // flushがexeされた場合に2つ後の命令をnop化
     end
 end
 
@@ -93,7 +95,7 @@ assign id_fwd_src2 = (MEM_WB_reg_write_request && MEM_WB_rd != 0 && MEM_WB_rd ==
                         ? MEM_WB_reg_write_data : read_reg_data2;
 
 always @ (posedge clk) begin
-    if (!stall) begin
+    if (!stall && !flush) begin // flushがexeされた場合に既にとりこんだ1つ後の命令をnop化
         ID_EXE_pc                   <= IF_ID_pc;
         ID_EXE_alu_op               <= alu_op;
         ID_EXE_immext               <= immext;
@@ -176,7 +178,7 @@ assign branch_taken = (ID_EXE_is_branch && (exe_aluout == 1'b1)) ? 1'b1 : 1'b0 ;
 //                         (ID_EXE_branch_type == 3'b101) ? (fwd_src1 >= fwd_src2) : 1'b0;
 
 always @* begin
-    flush = ID_EXE_is_branch && branch_taken || ID_EXE_is_jal || ID_EXE_is_jalr;
+    flush = (ID_EXE_is_branch && branch_taken) || ID_EXE_is_jal || ID_EXE_is_jalr;
 end
 
 always @ (posedge clk) begin
