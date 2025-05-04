@@ -9,3 +9,7 @@ all:
 	../src/alu.v \
 
 	./sim_top_haconiwa
+
+asm_c:
+	riscv32-unknown-elf-gcc -g -O0 -nostdlib start.S for.c -o for
+	riscv32-unknown-elf-objdump -d for > for.dump

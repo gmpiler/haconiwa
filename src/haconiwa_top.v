@@ -50,6 +50,6 @@ module SIMTOP();
         $dumpfile("sim_top_haconiwa.vcd");
         $dumpvars(0, htop);
 
-        #2000 $finish;
+        #10000 $finish;
     end
 endmodule
