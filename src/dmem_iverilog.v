@@ -13,6 +13,10 @@ assign read_data = RAM[access_address[31:2]];
 always @ (posedge clk) begin
     if (write_request) begin
         RAM[access_address[31:2]] <= write_data;
+
+        if (access_address == 32'h0000FFFC) begin
+            $display("writedata: %d", write_data);
+        end
     end
 end
 

@@ -8,7 +8,7 @@ _start:
     addi x0, x0, 0
     addi x0, x0, 0
     addi x0, x0, 0
-    li sp, 0x800
+    la sp, 0x3FFC
     jal main
 
 _finish:

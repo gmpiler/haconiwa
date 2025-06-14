@@ -55,11 +55,11 @@ module SIMTOP();
         $dumpfile("sim_top_haconiwa.vcd");
         $dumpvars(0, htop);
 
-        #10000
-        if (htop.dmem.RAM[32'h00000FFC >> 2] == 42)
+        #1000000
+        if (htop.dmem.RAM[32'h0000FFFC >> 2] == 42)
             $display("passed");
         else begin
-            $display("failed: got = %0d", htop.dmem.RAM[32'h00000FFC >> 2]);
+            $display("failed: got = %0d", htop.dmem.RAM[32'h0000FFFC >> 2]);
         end
 
         $finish;
