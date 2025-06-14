@@ -1,4 +1,4 @@
-`define DRAM_depth 1024
+`define DRAM_depth 4096
 
 module DMEM(
     input           clk, write_request,

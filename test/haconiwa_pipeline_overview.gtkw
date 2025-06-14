@@ -1,0 +1,68 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun May  4 10:08:25 2025
+[*]
+[dumpfile] "/home/gondos/work/FPGA/haconiwa/test/testfor/sim_top_haconiwa.vcd"
+[dumpfile_mtime] "Sun May  4 10:04:51 2025"
+[dumpfile_size] 308489
+[savefile] "/home/gondos/work/FPGA/haconiwa/test/haconiwa_pipeline_overview.gtkw"
+[timestart] 3384
+[size] 1166 641
+[pos] -1 -1
+*-8.070923 3685 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] SIMTOP.
+[treeopen] SIMTOP.htop.
+[sst_width] 278
+[signals_width] 307
+[sst_expanded] 1
+[sst_vpaned_height] 171
+@28
+SIMTOP.htop.hcore.clk
+@200
+-IF
+@22
+SIMTOP.htop.hcore.IF_ID_pc[31:0]
+SIMTOP.htop.hcore.IF_ID_instr[31:0]
+@200
+-
+-ID
+@22
+SIMTOP.htop.hcore.ID_EXE_pc[31:0]
+SIMTOP.htop.hcore.ID_EXE_read_reg_data1[31:0]
+SIMTOP.htop.hcore.ID_EXE_read_reg_data2[31:0]
+SIMTOP.htop.hcore.ID_EXE_immext[31:0]
+@28
+SIMTOP.htop.hcore.ID_EXE_imm_enable
+SIMTOP.htop.hcore.ID_EXE_reg_write_request
+SIMTOP.htop.hcore.ID_EXE_mem_read_request
+SIMTOP.htop.hcore.ID_EXE_mem_write_request
+SIMTOP.htop.hcore.ID_EXE_is_jal
+SIMTOP.htop.hcore.ID_EXE_is_jalr
+SIMTOP.htop.hcore.ID_EXE_is_branch
+SIMTOP.htop.hcore.ID_EXE_branch_type[2:0]
+@22
+SIMTOP.htop.hcore.next_pc[31:0]
+@200
+-
+-EXE
+@22
+SIMTOP.htop.hcore.EXE_MEM_pc[31:0]
+SIMTOP.htop.hcore.EXE_MEM_aluout[31:0]
+SIMTOP.htop.hcore.EXE_MEM_rd[4:0]
+@28
+SIMTOP.htop.hcore.EXE_MEM_reg_write_request
+SIMTOP.htop.hcore.EXE_MEM_mem_read_request
+SIMTOP.htop.hcore.EXE_MEM_mem_write_request
+@23
+SIMTOP.htop.hcore.EXE_MEM_mem_write_data[31:0]
+@200
+-
+-WB
+@22
+SIMTOP.htop.hcore.MEM_WB_reg_write_data[31:0]
+@28
+SIMTOP.htop.hcore.MEM_WB_reg_write_request
+@22
+SIMTOP.htop.hcore.MEM_WB_rd[4:0]
+[pattern_trace] 1
+[pattern_trace] 0

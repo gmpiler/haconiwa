@@ -21,7 +21,7 @@ reg [4:0]   ID_EXE_rd, ID_EXE_rs1, ID_EXE_rs2;
 reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable, ID_EXE_is_branch, ID_EXE_is_jal, ID_EXE_is_jalr;
 
 reg [4:0]   EXE_MEM_rd;
-reg [31:0]  EXE_MEM_pc, EXE_MEM_aluout, EXE_MEM_write_data;
+reg [31:0]  EXE_MEM_pc, EXE_MEM_aluout, EXE_MEM_mem_write_data;
 reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request, EXE_MEM_is_jal, EXE_MEM_is_jalr;
 
 reg         MEM_WB_reg_write_request;
@@ -184,7 +184,7 @@ end
 always @ (posedge clk) begin
     EXE_MEM_aluout <= exe_aluout;
     EXE_MEM_rd <= ID_EXE_rd;
-    EXE_MEM_write_data <= exe_fwd_src2;
+    EXE_MEM_mem_write_data <= exe_fwd_src2;
     EXE_MEM_reg_write_request <= ID_EXE_reg_write_request;
     EXE_MEM_mem_write_request <= ID_EXE_mem_write_request;
     EXE_MEM_mem_read_request <= ID_EXE_mem_read_request;
@@ -196,7 +196,7 @@ end
 /* === MEM Stage === */
 assign core2mem_write_request = EXE_MEM_mem_write_request;
 assign core2mem_access_address = EXE_MEM_aluout;
-assign core2mem_write_data = EXE_MEM_write_data;
+assign core2mem_write_data = EXE_MEM_mem_write_data;
 
 always @ (posedge clk) begin
     MEM_WB_reg_write_request <= EXE_MEM_reg_write_request;
