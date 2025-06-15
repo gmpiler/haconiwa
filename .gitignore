@@ -1,0 +1,6 @@
+*.vcd
+*.dump
+*.o
+**/sim_top_haconiwa
+*.out
+*.data

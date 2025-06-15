@@ -1,56 +1,50 @@
 # haconiwa - a toy cpu project
 ## SPECIFICATION
 ## SUPPORT
-R‑タイプ命令
-add
+R‑タイプ（レジスタ対レジスタ演算）
+add （funct7=0000000,funct3=000）
+sub （funct7=0100000,funct3=000）
+sll （funct3=001）
+srl （funct7=0000000,funct3=101）
+sra （funct7=0100000,funct3=101）
+slt （funct3=010）
+sltu （funct3=011）
 
-sub
+I‑タイプ（即値演算）
+addi (funct3=000)
+slti (funct3=010)
+sltiu (funct3=011)
+andi (funct3=111)
+ori (funct3=110)
+xori (funct3=100)
+slli (funct3=001)
+srli (funct7=0000000,funct3=101)
+srai (funct7=0100000,funct3=101)
 
-sll (logical left shift)
+I‑タイプ（ロード）
+lb (funct3=000)
+lh (funct3=001)
+lbu (funct3=100)
+lhu (funct3=101)
+lw (default, funct3=010)
 
-srl (logical right shift)
+S‑タイプ（ストア）
+sb (funct3=000)
+sh (funct3=001)
+sw (default, funct3=010)
 
-sra (arithmetic right shift)
+B‑タイプ（分岐）
+beq (funct3=000)
+bne (funct3=001)
+blt (funct3=100)
+bge (funct3=101)
+bltu (funct3=110)
+bgeu (funct3=111)
 
-slt (set less than, signed)
+U‑タイプ（上位即値）
+lui (opcode 0110111)
+auipc (opcode 0010111)
 
-I‑タイプ命令
-addi
-
-andi
-
-ori
-
-xori
-
-sltiu
-
-slli
-
-srli
-
-srai
-
-lw
-
-S‑タイプ命令
-sw
-
-B‑タイプ（分岐）命令
-beq
-
-bne
-
-blt
-
-bge
-
-U‑タイプ命令
-lui
-
-auipc
-
-J‑タイプ命令
-jal
-
-jalr
+J‑タイプ（ジャンプ／リンク）
+jal (opcode 1101111)
+jalr (opcode 1100111)

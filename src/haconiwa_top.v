@@ -55,7 +55,7 @@ module SIMTOP();
         $dumpfile("sim_top_haconiwa.vcd");
         $dumpvars(0, htop);
 
-        #1000000
+        #100000
         if (htop.dmem.RAM[32'h0000FFFC >> 2] == 42)
             $display("passed");
         else begin

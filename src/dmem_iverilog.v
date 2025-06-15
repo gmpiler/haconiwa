@@ -1,4 +1,5 @@
 `define DRAM_depth 4096
+// `define DRAM_depth 262144
 
 module DMEM(
     input           clk, write_request,
@@ -17,7 +18,9 @@ always @ (posedge clk) begin
         if (access_address == 32'h0000FFFC) begin
             $display("writedata: %d", write_data);
         end
+        $display("dmem[%x] <- %d", access_address, write_data);
     end
+
 end
 
 /* データメモリの初期化(シミュレーション用) */

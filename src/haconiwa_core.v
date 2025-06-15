@@ -6,7 +6,9 @@ module HACONIWA_CORE(
     output      [31:0]  core2mem_access_address,
     input       [31:0]  mem2core_read_data,
     output      [31:0]  core2mem_write_data,
-    output              core2mem_write_request
+    output              core2mem_write_request,
+    output      [1:0]   core2mem_width,    // 00=byte, 01=half, 10=word
+    output              core2mem_sign_ext // ロード時の符号拡張制御
 );
 
 /* === Pipeline Registers === */
@@ -18,11 +20,13 @@ reg [3:0]   ID_EXE_alu_op;
 reg [2:0]   ID_EXE_branch_type;
 reg [31:0]  ID_EXE_pc, next_pc, ID_EXE_immext, ID_EXE_read_reg_data1, ID_EXE_read_reg_data2;
 reg [4:0]   ID_EXE_rd, ID_EXE_rs1, ID_EXE_rs2;
-reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable, ID_EXE_is_branch, ID_EXE_is_jal, ID_EXE_is_jalr;
+reg         ID_EXE_reg_write_request, ID_EXE_mem_write_request, ID_EXE_mem_read_request, ID_EXE_imm_enable, ID_EXE_is_branch, ID_EXE_is_jal, ID_EXE_is_jalr, ID_EXE_load_sign;
+reg [1:0]   ID_EXE_load_width, ID_EXE_store_width;
 
 reg [4:0]   EXE_MEM_rd;
 reg [31:0]  EXE_MEM_pc, EXE_MEM_aluout, EXE_MEM_mem_write_data;
-reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request, EXE_MEM_is_jal, EXE_MEM_is_jalr;
+reg         EXE_MEM_reg_write_request, EXE_MEM_mem_write_request, EXE_MEM_mem_read_request, EXE_MEM_is_jal, EXE_MEM_is_jalr, EXE_MEM_load_sign;
+reg [1:0]   EXE_MEM_load_width, EXE_MEM_store_width;
 
 reg         MEM_WB_reg_write_request;
 reg [4:0]   MEM_WB_rd;
@@ -53,12 +57,17 @@ always @ (posedge clk) begin
     end
 end
 
+always @ (posedge clk) begin
+    $display("pc: 0x%x, instr: 0x%x", pc, IF_ID_instr);
+end
+
 /* === ID Stage === */
 wire [3:0] alu_op;
 wire [31:0] immext, read_reg_data1, read_reg_data2;
 wire [4:0] rd, rs1, rs2;
 wire [2:0] dec_branch_type;
-wire dec_reg_write_request, dec_mem_write_request, dec_mem_read_request, dec_imm_enable, dec_is_branch, dec_is_jal, dec_is_jalr;
+wire [1:0] dec_load_width, dec_store_width;
+wire dec_reg_write_request, dec_mem_write_request, dec_mem_read_request, dec_imm_enable, dec_is_branch, dec_is_jal, dec_is_jalr, dec_load_sign;
 
 DECODER dec(
     .instr(IF_ID_instr),
@@ -74,7 +83,10 @@ DECODER dec(
     .branch_type(dec_branch_type),
     .is_branch(dec_is_branch),
     .is_jal(dec_is_jal),
-    .is_jalr(dec_is_jalr)
+    .is_jalr(dec_is_jalr),
+    .dec_load_width(dec_load_width),
+    .dec_load_sign (dec_load_sign),
+    .dec_store_width(dec_store_width)
 );
 
 REGFILE regfile(
@@ -112,6 +124,9 @@ always @ (posedge clk) begin
         ID_EXE_is_branch            <= dec_is_branch;
         ID_EXE_is_jal               <= dec_is_jal;
         ID_EXE_is_jalr              <= dec_is_jalr;
+        ID_EXE_load_width           <= dec_load_width;
+        ID_EXE_load_sign            <= dec_load_sign;
+        ID_EXE_store_width          <= dec_store_width;
     end else begin
         ID_EXE_pc                   <= 32'b0;
         ID_EXE_alu_op               <= 4'b0;
@@ -129,6 +144,9 @@ always @ (posedge clk) begin
         ID_EXE_is_branch            <= 1'b0;
         ID_EXE_is_jal               <= 1'b0;
         ID_EXE_is_jalr              <= 1'b0;
+        ID_EXE_load_width           <= 2'b0;
+        ID_EXE_load_sign            <= 1'b0;
+        ID_EXE_store_width          <= 2'b0;
     end
 end
 
@@ -191,19 +209,37 @@ always @ (posedge clk) begin
     EXE_MEM_pc <= ID_EXE_pc;
     EXE_MEM_is_jal <= ID_EXE_is_jal;
     EXE_MEM_is_jalr <= ID_EXE_is_jalr;
+    EXE_MEM_load_width        <= ID_EXE_load_width;
+    EXE_MEM_store_width <= ID_EXE_store_width;
+    EXE_MEM_load_sign         <= ID_EXE_load_sign;
 end
 
 /* === MEM Stage === */
 assign core2mem_write_request = EXE_MEM_mem_write_request;
 assign core2mem_access_address = EXE_MEM_aluout;
 assign core2mem_write_data = EXE_MEM_mem_write_data;
+assign core2mem_width    = EXE_MEM_store_width;
+assign core2mem_sign_ext = EXE_MEM_load_sign;
 
 always @ (posedge clk) begin
     MEM_WB_reg_write_request <= EXE_MEM_reg_write_request;
-    MEM_WB_rd <= EXE_MEM_rd;
-    MEM_WB_reg_write_data <=    (EXE_MEM_mem_read_request) ? mem2core_read_data :
-                                (EXE_MEM_is_jal || EXE_MEM_is_jalr) ? EXE_MEM_pc + 32'h4 :
-                                EXE_MEM_aluout;
+    MEM_WB_rd                <= EXE_MEM_rd;
+    MEM_WB_reg_write_data    <= (EXE_MEM_mem_read_request) ?
+        // mem_read: width/sign に応じてバイト・ハーフ・ワードを符号 or ゼロ拡張
+        ((EXE_MEM_load_width == 2'b00) ?
+            (EXE_MEM_load_sign
+                ? {{24{mem2core_read_data[7]}},  mem2core_read_data[7:0]}   // lb
+                : {24'b0,                        mem2core_read_data[7:0]})
+        : (EXE_MEM_load_width == 2'b01) ?
+            (EXE_MEM_load_sign
+                ? {{16{mem2core_read_data[15]}}, mem2core_read_data[15:0]} // lh
+                : {16'b0,                       mem2core_read_data[15:0]})
+        :
+            mem2core_read_data)                                          // lw
+        : (EXE_MEM_is_jal || EXE_MEM_is_jalr) ?
+            EXE_MEM_pc + 32'h4                                             // jal/jalr
+        : EXE_MEM_aluout;                                               // その他
 end
+
 
 endmodule
